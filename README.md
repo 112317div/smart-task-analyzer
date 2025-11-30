@@ -218,22 +218,6 @@ The focus was on code quality, problem-solving approach, and demonstrating under
 ## License
 
 This project was created as a technical assessment for a Software Development Intern position.
-How to Create the File
-Option 1: In VS Code
-In VS Code, right-click on task-analyzer folder
 
-Select "New File"
 
-Name it: README.md
-
-Paste the content above
-
-Save (Ctrl+S)
-
-Option 2: Using Command Line
-bash
-cd C:\Users\HP\Desktop\task-analyzer
-notepad README.md
-# Paste the content, then save and close
-That's it! This README covers all the required sections from the assignment requirements. 📝
 
