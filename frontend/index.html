@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Task Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-100 to-blue-100 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-6">
+            <h1 class="text-5xl font-bold text-gray-800 mb-2">🎯 Smart Task Analyzer</h1>
+            <p class="text-gray-600 text-lg">Intelligently prioritize your tasks based on multiple factors</p>
+        </div>
+
+        <!-- Error/Warning Display -->
+        <div id="messageContainer"></div>
+
+        <!-- Add Tasks Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Add Tasks</h2>
+            
+            <!-- Tab Buttons -->
+            <div class="flex gap-4 mb-6">
+                <button onclick="switchTab('form')" id="formTab" 
+                    class="px-6 py-3 rounded-lg font-semibold bg-purple-600 text-white">
+                    Form Input
+                </button>
+                <button onclick="switchTab('json')" id="jsonTab"
+                    class="px-6 py-3 rounded-lg font-semibold bg-gray-200 text-gray-700">
+                    JSON Bulk Input
+                </button>
+            </div>
+
+            <!-- Form Input -->
+            <div id="formInput">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Task Title *</label>
+                        <input type="text" id="title" placeholder="e.g., Fix login bug"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Due Date *</label>
+                        <input type="date" id="dueDate"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Estimated Hours</label>
+                        <input type="number" id="hours" placeholder="3" min="0.5" step="0.5" value="1"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            Importance (1-10): <span id="impValue">5</span>
+                        </label>
+                        <input type="range" id="importance" min="1" max="10" value="5" 
+                            class="w-full" oninput="document.getElementById('impValue').textContent = this.value">
+                    </div>
+                </div>
+                <button onclick="addTask()" 
+                    class="w-full bg-purple-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-purple-700 transition">
+                    ➕ Add Task
+                </button>
+            </div>
+
+            <!-- JSON Input -->
+            <div id="jsonInput" style="display: none;">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Paste JSON Array</label>
+                <textarea id="jsonText" rows="10" placeholder='[{"title": "Fix bug", "due_date": "2025-12-10", "estimated_hours": 3, "importance": 8, "dependencies": []}]'
+                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none font-mono text-sm"></textarea>
+                <button onclick="importJSON()" 
+                    class="w-full mt-4 bg-purple-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-purple-700 transition">
+                    📥 Import Tasks
+                </button>
+            </div>
+
+            <!-- Task List -->
+            <div id="taskListSection" class="mt-6 pt-6 border-t-2" style="display: none;">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    Current Tasks (<span id="taskCount">0</span>)
+                </h3>
+                <div id="taskList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- Analysis Settings -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Analysis Settings</h2>
+            <label class="block text-sm font-bold text-gray-700 mb-2">Sorting Strategy</label>
+            <select id="strategy" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none mb-6">
+                <option value="smart">Smart Balance - All factors equally weighted</option>
+                <option value="fastest">Fastest Wins - Prioritize quick tasks</option>
+                <option value="impact">High Impact - Focus on importance</option>
+                <option value="deadline">Deadline Driven - Emphasize urgency</option>
+            </select>
+            <button onclick="analyzeTasks()" 
+                class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-blue-700 transition">
+                ⚡ Analyze Tasks
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" style="display: none;" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
+            <p class="text-gray-600 mt-4 text-lg font-semibold">Analyzing tasks...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="results" style="display: none;">
+            <!-- Top Suggestions -->
+            <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl shadow-xl p-8 mb-6 border-4 border-yellow-400">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">⭐ Top 3 Recommended Tasks</h2>
+                <div id="suggestions"></div>
+            </div>
+
+            <!-- All Tasks -->
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">📊 All Tasks (Sorted by Priority)</h2>
+                <div id="allTasks"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = [];
+        const API_URL = 'http://localhost:8000/api';
+
+        function showMessage(message, type = 'error') {
+            const container = document.getElementById('messageContainer');
+            const bgColor = type === 'error' ? 'bg-red-100 border-red-500 text-red-700' : 'bg-yellow-100 border-yellow-500 text-yellow-700';
+            container.innerHTML = `
+                <div class="${bgColor} border-l-4 p-4 mb-6 rounded">
+                    <p class="font-bold">${message}</p>
+                </div>
+            `;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+
+        function switchTab(tab) {
+            const formInput = document.getElementById('formInput');
+            const jsonInput = document.getElementById('jsonInput');
+            const formTab = document.getElementById('formTab');
+            const jsonTab = document.getElementById('jsonTab');
+
+            if (tab === 'form') {
+                formInput.style.display = 'block';
+                jsonInput.style.display = 'none';
+                formTab.className = 'px-6 py-3 rounded-lg font-semibold bg-purple-600 text-white';
+                jsonTab.className = 'px-6 py-3 rounded-lg font-semibold bg-gray-200 text-gray-700';
+            } else {
+                formInput.style.display = 'none';
+                jsonInput.style.display = 'block';
+                formTab.className = 'px-6 py-3 rounded-lg font-semibold bg-gray-200 text-gray-700';
+                jsonTab.className = 'px-6 py-3 rounded-lg font-semibold bg-purple-600 text-white';
+            }
+        }
+
+        function addTask() {
+            const title = document.getElementById('title').value.trim();
+            const dueDate = document.getElementById('dueDate').value;
+            const hours = parseFloat(document.getElementById('hours').value) || 1;
+            const importance = parseInt(document.getElementById('importance').value);
+
+            if (!title || !dueDate) {
+                showMessage('Please fill in title and due date');
+                return;
+            }
+
+            const task = {
+                id: `task_${Date.now()}`,
+                title,
+                due_date: dueDate,
+                estimated_hours: hours,
+                importance,
+                dependencies: []
+            };
+
+            tasks.push(task);
+            updateTaskList();
+            
+            // Clear form
+            document.getElementById('title').value = '';
+            document.getElementById('dueDate').value = '';
+            document.getElementById('hours').value = '1';
+            document.getElementById('importance').value = '5';
+            document.getElementById('impValue').textContent = '5';
+        }
+
+        function importJSON() {
+            const jsonText = document.getElementById('jsonText').value.trim();
+            if (!jsonText) {
+                showMessage('Please paste JSON data');
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(jsonText);
+                const tasksArray = Array.isArray(parsed) ? parsed : [parsed];
+                
+                tasksArray.forEach((task, index) => {
+                    tasks.push({
+                        id: task.id || `task_${Date.now()}_${index}`,
+                        title: task.title || 'Untitled',
+                        due_date: task.due_date || new Date().toISOString().split('T')[0],
+                        estimated_hours: parseFloat(task.estimated_hours) || 1,
+                        importance: Math.min(10, Math.max(1, parseInt(task.importance) || 5)),
+                        dependencies: task.dependencies || []
+                    });
+                });
+                
+                updateTaskList();
+                document.getElementById('jsonText').value = '';
+            } catch (e) {
+                showMessage('Invalid JSON: ' + e.message);
+            }
+        }
+
+        function updateTaskList() {
+            const section = document.getElementById('taskListSection');
+            const list = document.getElementById('taskList');
+            const count = document.getElementById('taskCount');
+
+            if (tasks.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            count.textContent = tasks.length;
+            
+            list.innerHTML = tasks.map((task, index) => `
+                <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
+                    <span class="font-semibold text-gray-700">${task.title}</span>
+                    <button onclick="removeTask(${index})" 
+                        class="text-red-500 hover:text-red-700 font-bold">✕ Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeTask(index) {
+            tasks.splice(index, 1);
+            updateTaskList();
+        }
+
+        async function analyzeTasks() {
+            if (tasks.length === 0) {
+                showMessage('Please add at least one task');
+                return;
+            }
+
+            const strategy = document.getElementById('strategy').value;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('messageContainer').innerHTML = '';
+
+            try {
+                // Analyze tasks
+                const analyzeRes = await fetch(`${API_URL}/tasks/analyze/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tasks, strategy })
+                });
+
+                if (!analyzeRes.ok) throw new Error('Failed to analyze');
+                const analyzeData = await analyzeRes.json();
+
+                // Get suggestions
+                const suggestRes = await fetch(`${API_URL}/tasks/suggest/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tasks, strategy, count: 3 })
+                });
+
+                if (!suggestRes.ok) throw new Error('Failed to get suggestions');
+                const suggestData = await suggestRes.json();
+
+                displayResults(analyzeData.tasks, suggestData.suggestions);
+                
+                if (analyzeData.circular_dependencies) {
+                    showMessage('⚠️ Circular dependencies detected!', 'warning');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message + ' - Make sure Django server is running!');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(scoredTasks, suggestions) {
+            // Display suggestions
+            const suggestionsDiv = document.getElementById('suggestions');
+            suggestionsDiv.innerHTML = suggestions.map(item => {
+                const task = item.task;
+                const colors = {
+                    'Critical': 'border-red-500 bg-red-50',
+                    'High': 'border-orange-500 bg-orange-50',
+                    'Medium': 'border-yellow-500 bg-yellow-50',
+                    'Low': 'border-green-500 bg-green-50'
+                };
+                const badgeColors = {
+                    'Critical': 'bg-red-500',
+                    'High': 'bg-orange-500',
+                    'Medium': 'bg-yellow-500',
+                    'Low': 'bg-green-500'
+                };
+                
+                return `
+                    <div class="border-l-4 ${colors[task.priority_level]} p-6 rounded-lg mb-4 shadow-md">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <span class="text-4xl font-bold text-purple-600">#${item.rank}</span>
+                                    <h3 class="text-2xl font-bold text-gray-800">${task.title}</h3>
+                                    <span class="${badgeColors[task.priority_level]} text-white px-3 py-1 rounded-full text-sm font-bold">
+                                        ${task.priority_level}
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 mb-2 font-semibold">💡 ${item.recommendation}</p>
+                                <p class="text-gray-600 text-sm mb-3">${task.explanation}</p>
+                                <div class="flex gap-4 text-sm text-gray-600">
+                                    <span>📅 ${new Date(task.due_date).toLocaleDateString()}</span>
+                                    <span>⏱️ ${task.estimated_hours}h</span>
+                                    <span>⭐ ${task.importance}/10</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-bold text-purple-600">${task.score}</div>
+                                <div class="text-xs text-gray-500">score</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Display all tasks
+            const allTasksDiv = document.getElementById('allTasks');
+            allTasksDiv.innerHTML = scoredTasks.map((task, index) => {
+                const badgeColors = {
+                    'Critical': 'bg-red-500',
+                    'High': 'bg-orange-500',
+                    'Medium': 'bg-yellow-500',
+                    'Low': 'bg-green-500'
+                };
+                
+                return `
+                    <div class="border-2 border-gray-200 rounded-lg p-5 mb-3 hover:border-purple-400 transition">
+                        <div class="flex justify-between items-center">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="${badgeColors[task.priority_level]} text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                                        ${index + 1}
+                                    </span>
+                                    <h3 class="text-xl font-bold text-gray-800">${task.title}</h3>
+                                    <span class="${badgeColors[task.priority_level]} text-white px-3 py-1 rounded-full text-xs font-bold">
+                                        ${task.priority_level}
+                                    </span>
+                                </div>
+                                <p class="text-gray-600 text-sm ml-13 mb-2">${task.explanation}</p>
+                                <div class="flex gap-4 text-sm text-gray-600 ml-13">
+                                    <span>📅 ${new Date(task.due_date).toLocaleDateString()}</span>
+                                    <span>⏱️ ${task.estimated_hours}h</span>
+                                    <span>⭐ ${task.importance}/10</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-3xl font-bold text-purple-600">${task.score}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('results').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
